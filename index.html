@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RK_JARVIS</title>
+<style>
+  body{margin:0;background:#050a14;color:#aeeaff;font-family:monospace;overflow:hidden}
+  header{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#000;border-bottom:2px solid #00aaff;box-shadow:0 0 15px #00aaff}
+  h1{margin:0;color:#00d5ff;letter-spacing:3px;text-shadow:0 0 10px #00aaff}
+  #status{display:flex;align-items:center;gap:6px}
+  #dot{width:10px;height:10px;border-radius:50%;background:red;box-shadow:0 0 8px red}
+  #camBox{position:relative;width:100%;height:38vh;background:#000;border:1px solid #00aaff}
+  video{width:100%;height:100%;object-fit:cover}
+  #overlay{position:absolute;inset:0;border:2px solid rgba(0,170,255,.3);pointer-events:none}
+  #chat{height:32vh;overflow:auto;padding:10px;background:rgba(0,20,40,.6)}
+  .msg{margin:8px;padding:8px 12px;border-radius:8px;max-width:85%}
+  .user{background:#002a4a;margin-left:auto;border:1px solid #00aaff}
+  .jarvis{background:#0a0a0a;border:1px solid #ff2040;color:#fff;box-shadow:0 0 10px rgba(0,170,255,.4)}
+  #controls{position:absolute;bottom:0;width:100%;padding:12px;background:#000;display:flex;flex-direction:column;align-items:center;gap:10px;border-top:2px solid #ff2040}
+  #micBtn{width:80px;height:80px;border-radius:50%;background:radial-gradient(#00aaff,#001a33);border:3px solid #00d5ff;box-shadow:0 0 20px #00aaff, inset 0 0 15px #00aaff;color:white;font-size:28px}
+  #micBtn.listening{animation:pulse 1s infinite;background:radial-gradient(#ff2040,#330000);border-color:#ff2040;box-shadow:0 0 25px #ff2040}
+  @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+  input{width:90%;padding:10px;background:#001122;border:1px solid #00aaff;color:#aeeaff;border-radius:20px}
+  button.small{background:#001a33;border:1px solid #00aaff;color:#00d5ff;padding:6px 12px;border-radius:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>RK_JARVIS</h1>
+  <div id="status"><div id="dot"></div><span id="conn">HORS LIGNE</span></div>
+</header>
+
+<div id="camBox">
+  <video id="video" autoplay playsinline></video>
+  <div id="overlay"></div>
+</div>
+
+<div id="chat"><div class="msg jarvis">Initialisation... Bonjour, je suis RK_JARVIS. Connectez-vous à Internet et appuyez sur le réacteur pour parler.</div></div>
+
+<div id="controls">
+  <div>
+    <button class="small" onclick="toggleCam()">📷 Caméra ON/OFF</button>
+    <button class="small" onclick="askKey()">🔑 Clé API</button>
+  </div>
+  <button id="micBtn" onclick="startVoice()">◉</button>
+  <input id="textInput" placeholder="Écris à RK_JARVIS ou parle..." onkeydown="if(event.key==='Enter')sendText()">
+</div>
+
+<script>
+let API_KEY = localStorage.getItem('rk_key')||'';
+let cameraOn=false;
+const video=document.getElementById('video'), chat=document.getElementById('chat'), dot=document.getElementById('dot'), conn=document.getElementById('conn');
+
+function askKey(){
+  let k=prompt("Colle ta clé Gemini gratuite (aistudio.google.com):",API_KEY);
+  if(k){API_KEY=k; localStorage.setItem('rk_key',k); addMsg("Clé enregistrée.","jarvis");}
+}
+function updateConn(){
+  let online=navigator.onLine;
+  dot.style.background=online?'#00ff88':'red'; dot.style.boxShadow=online?'0 0 8px #00ff88':'0 0 8px red';
+  conn.textContent=online?'EN LIGNE':'HORS LIGNE';
+}
+setInterval(updateConn,2000); updateConn();
+
+async function toggleCam(){
+  if(!cameraOn){
+    try{let s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}); video.srcObject=s; cameraOn=true;}catch(e){addMsg("Caméra refusée: "+e,"jarvis");}
+  }else{video.srcObject.getTracks().forEach(t=>t.stop()); video.srcObject=null; cameraOn=false;}
+}
+
+function addMsg(t,who){
+  let d=document.createElement('div'); d.className='msg '+who; d.textContent=t; chat.appendChild(d); chat.scrollTop=chat.scrollHeight;
+  if(who==='jarvis') speak(t);
+}
+function speak(t){
+  let u=new SpeechSynthesisUtterance(t); u.lang='fr-FR'; u.rate=1.1; speechSynthesis.speak(u);
+}
+
+// VOIX
+function startVoice(){
+  let Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Rec){addMsg("Reconnaissance vocale non supportée, écris en bas.","jarvis");return;}
+  let r=new Rec(); r.lang='fr-FR'; r.onstart=()=>{document.getElementById('micBtn').classList.add('listening');};
+  r.onend=()=>{document.getElementById('micBtn').classList.remove('listening');};
+  r.onresult=(e)=>{let txt=e.results[0][0].transcript; addMsg(txt,'user'); processAI(txt);};
+  r.start();
+}
+function sendText(){
+  let i=document.getElementById('textInput'); if(!i.value) return; addMsg(i.value,'user'); processAI(i.value); i.value='';
+}
+
+async function processAI(prompt){
+  if(!API_KEY){addMsg("Ajoute d'abord ta clé API Gemini. Bouton 🔑","jarvis"); return;}
+  // Commandes Android
+  if(prompt.toLowerCase().includes("ouvre youtube")){window.open("https://m.youtube.com","_blank"); addMsg("Ouverture de YouTube, Monsieur.","jarvis"); return;}
+  if(prompt.toLowerCase().includes("ouvre whatsapp")){window.open("https://wa.me","_blank"); return;}
+  if(prompt.toLowerCase().includes("ouvre google")){window.open("https://google.com","_blank"); return;}
+
+  addMsg("Analyse en cours...","jarvis");
+  let parts=[{text:`Tu es RK_JARVIS, assistant de Tony Stark version française. Réponds court, futuriste, utile. Utilisateur: ${prompt}`}];
+
+  // Si caméra active et demande d'analyse
+  if(cameraOn && (prompt.toLowerCase().includes("vois")||prompt.toLowerCase().includes("caméra")||prompt.toLowerCase().includes("analyse"))){
+    let canvas=document.createElement('canvas'); canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);
+    let base64=canvas.toDataURL('image/jpeg',0.6).split(',')[1];
+    parts.push({inline_data:{mime_type:"image/jpeg",data:base64}});
+  }
+
+  try{
+    let res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({contents:[{parts}]})
+    });
+    let data=await res.json();
+    let txt=data.candidates?.[0]?.content?.parts?.[0]?.text||"Aucune réponse, vérifie ta clé API.";
+    addMsg(txt,"jarvis");
+  }catch(e){addMsg("Erreur IA: "+e.message,"jarvis");}
+}
+</script>
+</body>
+</html>
