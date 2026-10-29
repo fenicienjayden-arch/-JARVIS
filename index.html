@@ -78,7 +78,6 @@ async function toggleTorch(){
   }catch{}
 }
 function clearAll(){chat.innerHTML='';addMsg('Mémoire effacée Monsieur','jarvis');}
-
 async function askJarvis(prompt){
   addMsg('Analyse en cours Monsieur...','jarvis');
   try{
@@ -86,7 +85,7 @@ async function askJarvis(prompt){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
       body:JSON.stringify({
-        model:'llama-3.3-70b-versatile',
+        model:'llama-3.1-8b-instant',
         messages:[
           {role:'system',content:'Tu es RK JARVIS, assistant personnel sérieux, respectueux, tu appelles toujours l utilisateur Monsieur. Tu réponds toujours en français, de manière concise, grave, efficace, style Jarvis de Stark. Tu ne répètes jamais la question de l utilisateur. Tu donnes des réponses utiles, pratiques, intelligentes.'},
           {role:'user',content:prompt}
@@ -110,7 +109,6 @@ async function askJarvis(prompt){
     addMsg('Erreur connexion Monsieur: Vérifie internet. '+e.message,'jarvis');
   }
 }
-
 async function send(){
   const t=inp.value.trim();
   if(!t)return;
@@ -132,4 +130,4 @@ addMsg('Monsieur. Système intelligent opérationnel. Posez votre question, je r
 if(navigator.getBattery){navigator.getBattery().then(b=>{document.getElementById('batt').textContent=Math.round(b.level*100)+'%';});}
 </script>
 </body>
-  </html>
+</html>
